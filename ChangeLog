@@ -1,0 +1,7 @@
+2007-06-18 Dodji Seketeli <dodji@openedhand.com>
+
+	* src/test-xvideo.c: first attempt at loading one frame from a yuv file
+	  and throwing it at xvideo.
+	  More work need to be done to support yuv formats other
+	  than yuv420planar.
+

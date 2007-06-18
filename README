@@ -1,0 +1,8 @@
+testxvideo is a test program that reads yuv frames from a yuv file
+and shows the frames in an X Window, using the XVideo extension.
+
+
+It can be used like this:
+
+testxvideo --width 680 --height 460 file.yuv
+

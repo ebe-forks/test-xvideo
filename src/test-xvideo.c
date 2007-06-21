@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, write to the Free Software Foundation, Inc., 51
  * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ *
+ * Author:
+ *   Dodji Seketeli <dodji@openedhand.com>
  */
 
 #include <stdlib.h>
@@ -40,7 +43,7 @@ if (!(expr)) {LOG_ERROR("assertion failed: %s", #expr);return;}
 if (!(expr)) {LOG_ERROR("assertion failed: %s", #expr);return val;}
 
 #define GUID_YUV12_PLANAR 0x32315659 /*YUV 4:2:0 planar*/
-#define GUID_YUV16_PLANAR 0x32315659 /*YUV 4:2:2 planar*/
+#define GUID_YUV16_PLANAR 0x36315659 /*YUV 4:2:2 planar*/
 
 /******************
  * <data types>
@@ -57,11 +60,22 @@ enum yuv_format_t {
     YUV_FORMAT_422_PLANAR
 };
 
+struct int_pair_t {
+    int first ;
+    int second ;
+};
+
 struct options_t {
     enum bool_t display_help ;
     char *display_name ;
-    int width ;
-    int height ;
+    int src_x ;
+    int src_y ;
+    int src_width ;
+    int src_height ;
+    int dst_x ;
+    int dst_y ;
+    int dst_width ;
+    int dst_height ;
     enum yuv_format_t yuv_format ;
     int nb_frames ;
     char *path_to_yuv_file ;
@@ -73,6 +87,10 @@ struct options_t {
 
 void display_help (const char *a_prog_name) ;
 void options_init (struct options_t *a_options) ;
+enum bool_t parse_int_pair (const char *a_in,
+                            int a_len,
+                            int *a_first,
+                            int *a_second) ;
 enum bool_t parse_command_line (int a_argc,
                                 char **a_argv,
                                 struct options_t *a_options) ;
@@ -108,10 +126,15 @@ enum bool_t lookup_image_format (Display *a_display,
 
 enum bool_t push_yuv_to_xvideo (Display *a_display,
                                 Window a_window,
-                                int a_x,
-                                int a_y,
-                                int a_width,
-                                int a_height) ;
+                                int a_nb_frames,/*0 => all frames*/
+                                int a_src_x,
+                                int a_src_y,
+                                int a_src_width,
+                                int a_src_height,
+                                int a_dst_x,
+                                int a_dst_y,
+                                int a_dst_width,
+                                int a_dst_height) ;
 
 static struct options_t *options=NULL ;
 static Window window ;
@@ -298,10 +321,15 @@ out:
 enum bool_t
 push_yuv_to_xvideo (Display *a_display,
                     Window a_window,
-                    int a_x,
-                    int a_y,
-                    int a_width,
-                    int a_height)
+                    int a_nb_frames /*0 => all frames*/,
+                    int a_src_x,
+                    int a_src_y,
+                    int a_src_width,
+                    int a_src_height,
+                    int a_dst_x,
+                    int a_dst_y,
+                    int a_dst_width,
+                    int a_dst_height)
 {
     enum bool_t is_ok = FALSE ;
     XvImageFormatValues image_format ;
@@ -310,7 +338,12 @@ push_yuv_to_xvideo (Display *a_display,
     XGCValues gc_values;
     char *yuv_buf=NULL ;
     unsigned yuv_buf_len=0 ;
+    int i=0 ;
 
+    if (!a_src_width || ! a_src_height) {
+        LOG_ERROR ("zero source width or source height was given\n") ;
+        return FALSE ;
+    }
     if (!get_xv_port (a_display, (Drawable)a_window, &xv_port)) {
         LOG_ERROR ("could not get xv port\n") ;
         goto out ;
@@ -323,33 +356,37 @@ push_yuv_to_xvideo (Display *a_display,
         goto out ;
     }
 
-    if (!read_next_yuv_image_of_size_and_format (yuv_input,
-                                                 a_width,
-                                                 a_height,
-                                                 YUV_FORMAT_420_PLANAR,
-                                                 &yuv_buf,
-                                                 &yuv_buf_len)) {
-        LOG_ERROR ("could not ready frame from yuv file\n") ;
-        goto out ;
-    }
-    xv_image = (XvImage*) XvCreateImage (a_display,
-                                         xv_port, image_format.id,
-                                         yuv_buf, a_width, a_height) ;
-    if (!xv_image) {
-        LOG_ERROR ("failed to create image\n") ;
-        goto out ;
-    }
-
     gc = XCreateGC (a_display, a_window, 0L, &gc_values) ;
     if (!gc) {
         LOG_ERROR ("failed to create gc \n") ;
         goto out ;
     }
-
-    XvPutImage (a_display, xv_port, a_window, gc, xv_image,
-                a_x, a_y, a_width, a_height,
-                a_x, a_y, a_width, a_height) ;
-
+    xv_image = (XvImage*) XvCreateImage (a_display,
+                                         xv_port, image_format.id,
+                                         NULL, a_src_width, a_src_height) ;
+    if (!xv_image) {
+        LOG_ERROR ("failed to create image\n") ;
+        goto out ;
+    }
+    for (i=0; ;i++) {
+        if (a_nb_frames && i >= a_nb_frames)
+            break ;
+        if (!read_next_yuv_image_of_size_and_format (yuv_input,
+                                                     a_src_width,
+                                                     a_src_height,
+                                                     YUV_FORMAT_420_PLANAR,
+                                                     &yuv_buf,
+                                                     &yuv_buf_len)) {
+            break ;
+        }
+        xv_image->data = yuv_buf ;
+        LOG ("pushing frame %d to xvideo ... \n", i) ;
+        XvPutImage (a_display, xv_port, a_window, gc, xv_image,
+                    a_src_x, a_src_y, a_src_width, a_src_height,
+                    a_dst_x, a_dst_y, a_dst_width, a_dst_height) ;
+        LOG ("pushed frame %d.\n", i) ;
+    }
+    LOG ("pushed %d frames to xvideo\n", i+1) ;
     is_ok = TRUE ;
 
 out:
@@ -409,14 +446,30 @@ do_process_expose_event (const XExposeEvent *a_event)
 void
 do_process_map_event (const XMapEvent *a_event)
 {
+    int dst_width=0, dst_height=0 ;
 
     RETURN_IF_FAIL (a_event && options) ;
 
     if (a_event->window != window)
         return ;
 
-    if (!push_yuv_to_xvideo (a_event->display, a_event->window,
-                             0, 0, options->width, options->height)) {
+    if (options->dst_width) {
+        dst_width = options->dst_width ;
+    } else {
+        dst_width = options->src_width ;
+    }
+    if (options->dst_height) {
+        dst_height = options->dst_height ;
+    } else {
+        dst_height = options->src_height ;
+    }
+    if (!push_yuv_to_xvideo (a_event->display,
+                             a_event->window,
+                             options->nb_frames,
+                             options->src_x, options->src_y,
+                             options->src_width, options->src_height,
+                             options->dst_x, options->dst_y,
+                             options->dst_width, options->dst_height)) {
         LOG_ERROR ("failed to push yuv to xvideo\n") ;
         return ;
     }
@@ -440,11 +493,13 @@ display_help (const char *a_prog_name)
              "usage: %s [options] <path-to-yuv-file>\n", a_prog_name) ;
     fprintf (stderr,
              "where options can be: \n"
-              "--help               display this help\n"
-              "--display            X11 display\n"
-              "--width <width>      width of the frame\n"
-              "--height <height>    height of the frame\n"
-              "--nb-frames <nb>     read nb frames from yuv file"
+              "--help                 display this help\n"
+              "--display              X11 display\n"
+              "--src-size <size>      source frame size. e.g: 320x240\n"
+              "--src-origin <size>    source frame origin e.g: 0x0\n"
+              "--dst-origin <origin>  destination origin. eg: 10x10\n"
+              "--dst-size <size>      destination size eg: 320x240\n"
+              "--nb-frames <nb>       read nb frames from yuv file"
                                                       " (all by default)\n"
               "--yuv420planar       input yuv format is 420 planar (default)\n"
               "--yuv420interleaved  input yuv format is 420 interleaved\n"
@@ -457,8 +512,8 @@ options_init (struct options_t *a_options)
     if (!a_options)
         return ;
     memset (a_options, 0, sizeof (struct options_t)) ;
-    a_options->width = 10 ;
-    a_options->height = 10 ;
+    a_options->src_width = 0 ;
+    a_options->src_height = 0 ;
     a_options->yuv_format = YUV_FORMAT_420_PLANAR ;
 }
 
@@ -477,6 +532,93 @@ options_free_members (struct options_t *a_opts)
     }
 }
 
+/**
+ * parse a string of the form 123x345
+ * that represents a pair of integers
+ */
+enum bool_t
+parse_int_pair (const char *a_in,
+                int a_len,
+                int *a_first,
+                int *a_second)
+{
+    int first=0, second=0, sign=1 ;
+    char *begin=NULL, *end=NULL, *eos=NULL, *cur=NULL ;
+
+    RETURN_VAL_IF_FAIL (a_in && a_first && a_second, FALSE) ;
+
+    cur = (char*)a_in ;
+    begin = cur ;
+    eos = begin + a_len ;
+
+    /*accept '+' or '-' at the begining of a_in*/
+    if (*cur == '+' || *cur == '-')
+        cur ++ ;
+
+    /*find end of first number*/
+    for (;cur < eos; cur++) {
+        if (!isdigit (*cur)) {
+            if (*cur == 'x' || *cur == 'X') {
+                end = cur ;
+            }
+            break ;
+        }
+    }
+    if (!end || (*end != 'x' && *end != 'X') ) {
+        /*did not find proper number*/
+        return FALSE ;
+    }
+
+    /*first = atoi ([begin, end])*/
+    if (*begin == '+') {
+        sign = 1 ;
+    } else if (*begin == '-') {
+        sign = -1 ;
+    } else {
+        first = *begin - '0';
+    }
+    for (++begin; begin < end; ++begin) {
+        first = first*10 + (*begin - '0') ;
+    }
+    first *= sign ;
+    sign = 1 ;
+
+    /*get the begining of the second number*/
+    cur = end ;
+    ++cur ;
+    if (cur >= eos
+        || (!isdigit (*cur) && ((*cur) != '-') && ((*cur) != '+'))) {
+        return FALSE ;
+    }
+    begin = cur ;
+    end = NULL ;
+    /*get the end of the second number*/
+    for (++cur; cur < eos; cur++) {
+        if (!isdigit (*cur)) {
+            end = cur ;
+            break ;
+        }
+    }
+    if (!end)
+        end = cur  ;
+
+    /*second = atoi ([begin, end])*/
+    if (*begin == '+') {
+        sign = 1 ;
+    } else if (*begin == '-') {
+        sign = -1 ;
+    } else {
+        second = *begin - '0' ;
+    }
+    for (++begin; begin < end; ++begin) {
+        second = second*10 + (*begin - '0') ;
+    }
+    second *= sign ;
+
+    *a_first = first ;
+    *a_second = second ;
+    return TRUE ;
+}
 
 enum bool_t
 parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
@@ -502,23 +644,71 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             }
             a_options->display_name = strdup (a_argv[i+1]) ;
             i++ ;
-        } else if (!strcmp (a_argv[i], "--width")) {
-            if (i >= a_argc || a_argv[i+1][0] == '-') {
-                LOG_ERROR ("please, give an size argument to  --width\n") ;
+        }  else if (!strcmp (a_argv[i], "--src-origin")) {
+            if (i >= a_argc
+                || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
+                LOG_ERROR ("please, give an size argument to --src-origin\n") ;
                 a_options->display_help = TRUE ;
                 return FALSE ;
             }
-            a_options->width = atoi (a_argv[i+1]) ;
-            i++ ;
-        } else if (!strcmp (a_argv[i], "--height")) {
-            if (i >= a_argc || a_argv[i+1][0] == '-') {
-                LOG_ERROR ("please, give an size argument to --height\n") ;
+            if (!parse_int_pair (a_argv[i+1],
+                                 strlen (a_argv[i+1]),
+                                 &a_options->src_x,
+                                 &a_options->src_y)) {
+                LOG_ERROR ("argument to --src-origin is not well formed\n") ;
                 a_options->display_help = TRUE ;
                 return FALSE ;
             }
-            a_options->height = atoi (a_argv[i+1]) ;
             i++ ;
-        } else if (!strcmp (a_argv[i], "--nb-frames")) {
+        } else if (!strcmp (a_argv[i], "--src-size")) {
+            if (i >= a_argc
+                || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
+                LOG_ERROR ("please, give an size argument to --src-size\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            if (!parse_int_pair (a_argv[i+1],
+                                 strlen (a_argv[i+1]),
+                                 &a_options->src_width,
+                                 &a_options->src_height)) {
+                LOG_ERROR ("argument to --src-size is not well formed\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            i++ ;
+        } else if (!strcmp (a_argv[i], "--dst-origin")) {
+            if (i >= a_argc
+                || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
+                LOG_ERROR ("please, give an size argument to --dst-origin\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            if (!parse_int_pair (a_argv[i+1],
+                                 strlen (a_argv[i+1]),
+                                 &a_options->dst_x,
+                                 &a_options->dst_y)) {
+                LOG_ERROR ("argument to --dst-origin is not well formed\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            i++ ;
+        }  else if (!strcmp (a_argv[i], "--dst-size")) {
+            if (i >= a_argc
+                || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
+                LOG_ERROR ("please, give an size argument to --dst-size\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            if (!parse_int_pair (a_argv[i+1],
+                                 strlen (a_argv[i+1]),
+                                 &a_options->dst_width,
+                                 &a_options->dst_height)) {
+                LOG_ERROR ("argument to --dst-size is not well formed\n") ;
+                a_options->display_help = TRUE ;
+                return FALSE ;
+            }
+            i++ ;
+        }else if (!strcmp (a_argv[i], "--nb-frames")) {
             if (i >= a_argc || a_argv[i+1][0] == '-') {
                 LOG_ERROR ("please, give an size argument to  --nb-frames\n") ;
                 a_options->display_help = TRUE ;

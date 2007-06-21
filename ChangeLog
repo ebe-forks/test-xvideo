@@ -1,3 +1,13 @@
+2007-06-21 Dodji Seketeli <dodji@openedhand.com>
+
+	* src/test-xvideo.c:
+	  added --src-size <s> --src-origin <o>, --dst-size <s>,
+	  --dst-origin <o>, --nb-frames <nb> arguments.
+	  Size and coordinates can now be given under the form
+	  234x567.
+	  Image resizing is not allowed.
+	* data/*.yuv: added som yuv files to ease testing.
+
 2007-06-18 Dodji Seketeli <dodji@openedhand.com>
 
 	* src/test-xvideo.c: first attempt at loading one frame from a yuv file

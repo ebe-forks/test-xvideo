@@ -340,6 +340,11 @@ push_yuv_to_xvideo (Display *a_display,
     unsigned yuv_buf_len=0 ;
     int i=0 ;
 
+    LOG ("src_x:%d, src_y:%d, src_w:%d, src_h:%d\n"
+         "dst_x:%d, dst_y:%d, dst_w:%d, dst_h:%d",
+         a_src_x, a_src_y, a_src_width, a_src_height,
+         a_dst_x, a_dst_y, a_dst_width, a_dst_height) ;
+
     if (!a_src_width || ! a_src_height) {
         LOG_ERROR ("zero source width or source height was given\n") ;
         return FALSE ;
@@ -384,9 +389,13 @@ push_yuv_to_xvideo (Display *a_display,
         XvPutImage (a_display, xv_port, a_window, gc, xv_image,
                     a_src_x, a_src_y, a_src_width, a_src_height,
                     a_dst_x, a_dst_y, a_dst_width, a_dst_height) ;
+        XFlush (a_display) ;
+        if (yuv_buf) {
+            free (yuv_buf) ;
+            yuv_buf = NULL ;
+        }
         LOG ("pushed frame %d.\n", i) ;
     }
-    LOG ("pushed %d frames to xvideo\n", i+1) ;
     is_ok = TRUE ;
 
 out:
@@ -469,11 +478,11 @@ do_process_map_event (const XMapEvent *a_event)
                              options->src_x, options->src_y,
                              options->src_width, options->src_height,
                              options->dst_x, options->dst_y,
-                             options->dst_width, options->dst_height)) {
+                             dst_width, dst_height)) {
         LOG_ERROR ("failed to push yuv to xvideo\n") ;
         return ;
     }
-    LOG_ERROR ("pushed yuv to xvideo ok\n") ;
+    LOG ("pushed yuv to xvideo ok\n") ;
 }
 
 /**************************

@@ -1,3 +1,9 @@
+2007-06-22 Dodji Seketeli <dodji@openedhand.com>
+
+	* src/test-xvideo.c: 
+	  (push_yuv_to_xvideo): flush each XvPutImage call.
+	  kill a memleak, fix some logging.
+
 2007-06-21 Dodji Seketeli <dodji@openedhand.com>
 
 	* src/test-xvideo.c:

@@ -26,6 +26,7 @@
 #include <X11/extensions/Xvlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define LOG_POSITION \
 fprintf(stdout, "in (%s) at %s:%d: ", __func__, __FILE__, __LINE__) ;

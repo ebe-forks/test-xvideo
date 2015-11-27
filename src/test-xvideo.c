@@ -647,7 +647,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             return TRUE ;
         }
         if (!strcmp (a_argv[i], "--display")) {
-            if (i >= a_argc || a_argv[i+1][0] == '-') {
+            if (i >= a_argc || a_argv[i+1] == NULL || a_argv[i+1][0] == '-' ) {
                 LOG_ERROR ("please, give an argument to  --display\n") ;
                 a_options->display_help = TRUE ;
                 return FALSE ;
@@ -655,7 +655,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             a_options->display_name = strdup (a_argv[i+1]) ;
             i++ ;
         }  else if (!strcmp (a_argv[i], "--src-origin")) {
-            if (i >= a_argc
+            if (i >= a_argc || a_argv[i+1] == NULL
                 || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
                 LOG_ERROR ("please, give an size argument to --src-origin\n") ;
                 a_options->display_help = TRUE ;
@@ -671,7 +671,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             }
             i++ ;
         } else if (!strcmp (a_argv[i], "--src-size")) {
-            if (i >= a_argc
+            if (i >= a_argc || a_argv[i+1] == NULL
                 || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
                 LOG_ERROR ("please, give an size argument to --src-size\n") ;
                 a_options->display_help = TRUE ;
@@ -687,7 +687,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             }
             i++ ;
         } else if (!strcmp (a_argv[i], "--dst-origin")) {
-            if (i >= a_argc
+            if (i >= a_argc || a_argv[i+1] == NULL
                 || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
                 LOG_ERROR ("please, give an size argument to --dst-origin\n") ;
                 a_options->display_help = TRUE ;
@@ -703,7 +703,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             }
             i++ ;
         }  else if (!strcmp (a_argv[i], "--dst-size")) {
-            if (i >= a_argc
+            if (i >= a_argc || a_argv[i+1] == NULL
                 || (a_argv[i+1][0] == '-' && !isdigit (a_argv[i+1][1]))) {
                 LOG_ERROR ("please, give an size argument to --dst-size\n") ;
                 a_options->display_help = TRUE ;
@@ -719,7 +719,7 @@ parse_command_line (int a_argc, char **a_argv, struct options_t *a_options)
             }
             i++ ;
         }else if (!strcmp (a_argv[i], "--nb-frames")) {
-            if (i >= a_argc || a_argv[i+1][0] == '-') {
+            if (i >= a_argc || a_argv[i+1] == NULL || a_argv[i+1][0] == '-') {
                 LOG_ERROR ("please, give an size argument to  --nb-frames\n") ;
                 a_options->display_help = TRUE ;
                 return FALSE ;

@@ -5,10 +5,7 @@ AC_INIT(xvideo-tests, 0.0.1)
 AC_PREREQ(2.59)
 
 AC_CONFIG_SRCDIR(README)
-AC_CONFIG_MACRO_DIR([m4])
-AC_CANONICAL_TARGET
-AM_MAINTAINER_MODE
-AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+AM_INIT_AUTOMAKE()
 
 MAJOR_VERSION=0
 MINOR_VERSION=0
@@ -21,7 +18,8 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_RANLIB
 
-AC_CHECK_HEADERS([X11/Xlib.h X11/extensions/Xvlib.h])
+AC_CHECK_HEADERS([X11/Xlib.h X11/extensions/Xvlib.h],[],[AC_MSG_ERROR([Cannot find X headers])])
+
 ENABLE_DEBUG=no
 AC_ARG_ENABLE(debug,
               [  --enable-debug enable debugging, default is 'no'],
@@ -42,16 +40,3 @@ Makefile
 ])
 
 AC_OUTPUT()
-
-echo  ===================================
-echo          configuration of this package:
-echo          host            :    $host
-echo          target          :    $target
-echo          CC              :    $CC
-echo          CFLAGS          :    $CFLAGS
-echo          KERNEL_HEADERS_DIR  :    $KERNEL_HEADERS_DIR
-echo          enable debug    :    $ENABLE_DEBUG
-echo          prefix          :    $prefix
-echo ""
-echo    Now, type 'make' to compile, and 'make install' to install
-echo  ===================================

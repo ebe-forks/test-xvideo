@@ -18,7 +18,7 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_RANLIB
 
-AC_CHECK_HEADERS([X11/Xlib.h X11/extensions/Xvlib.h],[],[AC_MSG_ERROR([Cannot find X headers])])
+AC_CHECK_HEADERS([X11/extensions/Xvlib.h],[],[AC_MSG_ERROR([Cannot find X headers])],[[#include <X11/Xlib.h>]])
 
 ENABLE_DEBUG=no
 AC_ARG_ENABLE(debug,
